@@ -11,6 +11,7 @@
             <li>Asynchronously loads the latest 30 commits, with refresh.</li>
             <li>Renders changed files as a compact directory tree, collapsing single-child folders.</li>
             <li>Colors and icons distinguish added / modified / deleted / moved files.</li>
+            <li>Shows changed Java methods with NEW / MODIFIED / DELETED status and +/- line counts.</li>
             <li>Double-click opens the native IntelliJ diff; the context menu can jump to source.</li>
         </ul>
     ]]></description>
@@ -20,7 +21,8 @@
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="Review Atlas"
+        <diffExtension implementation="io.github.pingecc.reviewatlas.util.ReviewDiffScrollExtension"/>
+        <toolWindow id="ReviewAtlas"
                     anchor="right"
                     icon="/icons/reviewAtlas.svg"
                     factoryClass="io.github.pingecc.reviewatlas.ui.ReviewAtlasToolWindowFactory"/>

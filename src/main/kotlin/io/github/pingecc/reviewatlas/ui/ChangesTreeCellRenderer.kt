@@ -1,5 +1,6 @@
 package io.github.pingecc.reviewatlas.ui
 
+import io.github.pingecc.reviewatlas.model.MethodChangeKind
 import io.github.pingecc.reviewatlas.model.ReviewTreeNode
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.vcs.changes.Change
@@ -51,6 +52,29 @@ class ChangesTreeCellRenderer : ColoredTreeCellRenderer() {
                 }
             }
 
+            is ReviewTreeNode.Method -> {
+                val method = node.method
+                icon = AllIcons.Nodes.Method
+                val attributes = if (selected) {
+                    SimpleTextAttributes.REGULAR_ATTRIBUTES
+                } else {
+                    SimpleTextAttributes(SimpleTextAttributes.STYLE_PLAIN, colorFor(method.kind))
+                }
+                append(method.name, attributes)
+                append(method.signature.removePrefix(method.name), SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
+                if (method.addedLines > 0 || method.removedLines > 0) {
+                    append(
+                        "  +${method.addedLines} -${method.removedLines}",
+                        SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES,
+                    )
+                }
+                toolTipText = buildString {
+                    append(method.signature)
+                    append("  ·  ")
+                    append(methodLabel(method.kind))
+                }
+            }
+
             else -> {
                 icon = null
                 append(node.toString(), SimpleTextAttributes.REGULAR_ATTRIBUTES)
@@ -72,10 +96,22 @@ class ChangesTreeCellRenderer : ColoredTreeCellRenderer() {
         Change.Type.MODIFICATION -> JBColor(0x0550AE, 0x79B8FF)
     }
 
+    private fun colorFor(kind: MethodChangeKind): Color = when (kind) {
+        MethodChangeKind.NEW -> JBColor(0x1A7F37, 0x7BD88F)
+        MethodChangeKind.DELETED -> JBColor(0xCF222E, 0xF07178)
+        MethodChangeKind.MODIFIED -> JBColor(0x0550AE, 0x79B8FF)
+    }
+
     private fun labelFor(type: Change.Type): String = when (type) {
         Change.Type.NEW -> "Added"
         Change.Type.DELETED -> "Deleted"
         Change.Type.MOVED -> "Moved"
         Change.Type.MODIFICATION -> "Modified"
+    }
+
+    private fun methodLabel(kind: MethodChangeKind): String = when (kind) {
+        MethodChangeKind.NEW -> "Added"
+        MethodChangeKind.DELETED -> "Deleted"
+        MethodChangeKind.MODIFIED -> "Modified"
     }
 }

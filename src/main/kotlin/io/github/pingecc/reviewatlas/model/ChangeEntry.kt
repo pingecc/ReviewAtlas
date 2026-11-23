@@ -11,4 +11,7 @@ data class ChangeEntry(
     val relativePath: String,
     val type: Change.Type,
     val fileName: String,
-)
+) {
+    /** Populated asynchronously by [io.github.pingecc.reviewatlas.semantic.SemanticMethodExtractor]. */
+    var methods: List<MethodChange> = emptyList()
+}

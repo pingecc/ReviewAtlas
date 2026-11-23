@@ -81,7 +81,15 @@ object ChangesTreeBuilder {
             .forEach { node.add(toTreeNode(it)) }
         directory.files
             .sortedBy { it.fileName.lowercase() }
-            .forEach { node.add(DefaultMutableTreeNode(ReviewTreeNode.File(it.fileName, it))) }
+            .forEach { entry ->
+                val fileNode = DefaultMutableTreeNode(ReviewTreeNode.File(entry.fileName, entry))
+                entry.methods
+                    .sortedBy { it.line }
+                    .forEach { method ->
+                        fileNode.add(DefaultMutableTreeNode(ReviewTreeNode.Method(entry, method)))
+                    }
+                node.add(fileNode)
+            }
         return node
     }
 }

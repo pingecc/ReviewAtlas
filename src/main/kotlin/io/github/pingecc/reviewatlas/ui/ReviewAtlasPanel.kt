@@ -3,9 +3,12 @@ package io.github.pingecc.reviewatlas.ui
 import io.github.pingecc.reviewatlas.git.GitChangeLoader
 import io.github.pingecc.reviewatlas.model.ChangeEntry
 import io.github.pingecc.reviewatlas.model.CommitItem
+import io.github.pingecc.reviewatlas.model.MethodChange
 import io.github.pingecc.reviewatlas.model.ReviewTreeNode
+import io.github.pingecc.reviewatlas.semantic.SemanticMethodExtractor
 import io.github.pingecc.reviewatlas.util.DiffOpener
 import io.github.pingecc.reviewatlas.util.Edt
+import io.github.pingecc.reviewatlas.util.MethodNavigator
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.ide.CopyPasteManager
@@ -21,7 +24,6 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.SimpleTree
 import com.intellij.util.Alarm
 import com.intellij.util.ui.JBUI
-import com.intellij.util.ui.tree.TreeUtil
 import java.awt.BorderLayout
 import java.awt.datatransfer.StringSelection
 import java.awt.event.ActionEvent
@@ -201,6 +203,15 @@ class ReviewAtlasPanel(private val project: Project) : JPanel(BorderLayout()), D
             override fun run(indicator: ProgressIndicator) {
                 try {
                     loaded = GitChangeLoader.loadEntries(project, item, indicator)
+                    if (loaded.isNotEmpty()) {
+                        try {
+                            SemanticMethodExtractor.enrich(project, loaded, indicator)
+                        } catch (e: ProcessCanceledException) {
+                            throw e
+                        } catch (_: Exception) {
+                            // Semantic analysis is best-effort; keep the file tree usable.
+                        }
+                    }
                 } catch (e: ProcessCanceledException) {
                     throw e
                 } catch (e: Exception) {
@@ -248,7 +259,7 @@ class ReviewAtlasPanel(private val project: Project) : JPanel(BorderLayout()), D
         }
 
         if (entries.size <= 250) {
-            TreeUtil.expandAll(tree)
+            expandDirectoriesOnly()
         } else {
             tree.expandRow(0)
         }
@@ -258,7 +269,23 @@ class ReviewAtlasPanel(private val project: Project) : JPanel(BorderLayout()), D
         } else {
             ""
         }
-        setStatus("${entries.size} changed file(s)$suffix")
+        val methodCount = entries.sumOf { it.methods.size }
+        val methodSuffix = if (methodCount > 0) ", $methodCount changed method(s)" else ""
+        setStatus("${entries.size} changed file(s)$methodSuffix$suffix")
+    }
+
+    private fun expandDirectoriesOnly() {
+        val root = tree.model.root as? DefaultMutableTreeNode ?: return
+        expandDirectoryNode(root, TreePath(root))
+    }
+
+    private fun expandDirectoryNode(node: DefaultMutableTreeNode, path: TreePath) {
+        if (node.userObject !is ReviewTreeNode.Directory) return
+        tree.expandPath(path)
+        for (index in 0 until node.childCount) {
+            val child = node.getChildAt(index) as? DefaultMutableTreeNode ?: continue
+            expandDirectoryNode(child, path.pathByAddingChild(child))
+        }
     }
 
     private fun workingTreeItem(): CommitItem =
@@ -296,7 +323,11 @@ class ReviewAtlasPanel(private val project: Project) : JPanel(BorderLayout()), D
         tree.inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), actionKey)
         tree.actionMap.put(actionKey, object : AbstractAction() {
             override fun actionPerformed(e: ActionEvent?) {
-                selectedEntry()?.let { openDiff(it) }
+                when (val node = selectedNode()) {
+                    is ReviewTreeNode.Method -> openMethodDiff(node.entry, node.method)
+                    is ReviewTreeNode.File -> openDiff(node.entry)
+                    else -> Unit
+                }
             }
         })
     }
@@ -313,39 +344,82 @@ class ReviewAtlasPanel(private val project: Project) : JPanel(BorderLayout()), D
                 openDiff(node.entry)
             }
 
+            is ReviewTreeNode.Method -> {
+                tree.selectionPath = path
+                openMethodDiff(node.entry, node.method)
+            }
+
             else -> Unit
         }
     }
 
     private fun showPopup(e: MouseEvent) {
-        val entry = findEntry(e) ?: return
-
+        val node = findNode(e) ?: return
         val menu = JPopupMenu()
-        menu.add(JMenuItem("Open Diff").apply {
-            addActionListener { openDiff(entry) }
-        })
-        menu.add(JMenuItem("Jump to Source").apply {
-            addActionListener { jumpToSource(entry) }
-        })
-        menu.addSeparator()
-        menu.add(JMenuItem("Copy Relative Path").apply {
-            addActionListener {
-                CopyPasteManager.getInstance().setContents(StringSelection(entry.relativePath))
+
+        when (node) {
+            is ReviewTreeNode.File -> {
+                val entry = node.entry
+                menu.add(JMenuItem("Open Diff").apply {
+                    addActionListener { openDiff(entry) }
+                })
+                menu.add(JMenuItem("Jump to Source").apply {
+                    addActionListener { jumpToSource(entry) }
+                })
+                menu.addSeparator()
+                menu.add(JMenuItem("Copy Relative Path").apply {
+                    addActionListener {
+                        CopyPasteManager.getInstance().setContents(StringSelection(entry.relativePath))
+                    }
+                })
             }
-        })
+
+            is ReviewTreeNode.Method -> {
+                menu.add(JMenuItem("Open Diff").apply {
+                    addActionListener { openMethodDiff(node.entry, node.method) }
+                })
+                menu.add(JMenuItem("Jump to Source").apply {
+                    addActionListener { openMethod(node.entry, node.method) }
+                })
+                menu.addSeparator()
+                menu.add(JMenuItem("Copy Reference").apply {
+                    addActionListener {
+                        CopyPasteManager.getInstance().setContents(StringSelection(node.method.reference))
+                    }
+                })
+            }
+
+            else -> return
+        }
+
         menu.show(tree, e.x, e.y)
     }
 
-    private fun findEntry(e: MouseEvent): ChangeEntry? {
+    private fun findNode(e: MouseEvent): ReviewTreeNode? {
         val path: TreePath = tree.getPathForLocation(e.x, e.y) ?: return null
         tree.selectionPath = path
-        return entryOf(path)
+        return nodeOf(path)
     }
 
-    private fun selectedEntry(): ChangeEntry? = entryOf(tree.selectionPath)
+    private fun selectedNode(): ReviewTreeNode? = nodeOf(tree.selectionPath)
 
-    private fun entryOf(path: TreePath?): ChangeEntry? =
-        ((path?.lastPathComponent as? DefaultMutableTreeNode)?.userObject as? ReviewTreeNode.File)?.entry
+    private fun nodeOf(path: TreePath?): ReviewTreeNode? =
+        (path?.lastPathComponent as? DefaultMutableTreeNode)?.userObject as? ReviewTreeNode
+
+    private fun openMethod(entry: ChangeEntry, method: MethodChange) {
+        MethodNavigator.openMethod(project, entry, method) { message ->
+            if (!disposed) setStatus(message)
+        }
+    }
+
+    private fun openMethodDiff(entry: ChangeEntry, method: MethodChange) {
+        DiffOpener.openMethodDiff(project, entry, method) { detail ->
+            if (!disposed) {
+                val suffix = detail?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "."
+                setStatus("Cannot open diff for ${method.name}()$suffix", isError = true)
+            }
+        }
+    }
 
     private fun openDiff(entry: ChangeEntry) {
         DiffOpener.openDiff(project, entry.change) { detail ->

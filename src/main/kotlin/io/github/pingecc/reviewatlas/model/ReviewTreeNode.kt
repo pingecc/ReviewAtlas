@@ -20,4 +20,9 @@ sealed class ReviewTreeNode {
     }
 
     class File(override val name: String, val entry: ChangeEntry) : ReviewTreeNode()
+
+    class Method(val entry: ChangeEntry, val method: MethodChange) : ReviewTreeNode() {
+        override val name: String
+            get() = method.name
+    }
 }
