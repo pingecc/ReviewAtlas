@@ -44,7 +44,6 @@ class ChangesTreeCellRenderer : ColoredTreeCellRenderer() {
                     SimpleTextAttributes(SimpleTextAttributes.STYLE_PLAIN, colorFor(entry.type))
                 }
                 append(node.name, attributes)
-                append("  ${entry.relativePath}", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
                 toolTipText = buildString {
                     append(entry.relativePath)
                     append("  ·  ")

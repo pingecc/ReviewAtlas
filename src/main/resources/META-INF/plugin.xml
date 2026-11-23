@@ -9,7 +9,7 @@
         (or your current uncommitted changes) in a dedicated side-panel ToolWindow.</p>
         <ul>
             <li>Asynchronously loads the latest 30 commits, with refresh.</li>
-            <li>Renders changed files as a strict directory tree.</li>
+            <li>Renders changed files as a compact directory tree, collapsing single-child folders.</li>
             <li>Colors and icons distinguish added / modified / deleted / moved files.</li>
             <li>Double-click opens the native IntelliJ diff; the context menu can jump to source.</li>
         </ul>

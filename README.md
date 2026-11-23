@@ -18,11 +18,29 @@
 - 额外提供 `Working Tree · uncommitted changes` 入口，Review 未提交变更（含 `git ls-files --others` 的未跟踪文件）
 - 默认选中最新 Commit；Git 仓库晚于 ToolWindow 初始化时自动重试
 - 按文件真实路径逐级分组渲染目录树（目录优先、忽略大小写排序）
+- 自动压缩只有单个子目录、且自身没有文件的中间路径（如 `src/main/java/com/example/order`）
 - 颜色 + 图标区分 `Added / Modified / Deleted / Moved`
 - 双击文件：打开 IDEA 原生 Diff 视图
 - 右键菜单：`Open Diff`、`Jump to Source`、`Copy Relative Path`
 - 键盘 `Enter`：对选中文件执行 `Open Diff`
 - 双击目录：展开 / 收起
+
+### 目录树压缩规则
+
+- 只有一个子目录、且自身没有文件的中间目录，会合并成一行显示，例如：
+  `src/main/java/com/example/order`
+- 遇到**包含文件**的目录时停止合并，因此文件始终显示在其真实父目录下。
+- 根节点不参与合并，避免只含一条路径时丢失第一层目录。
+- 目录名后的数字表示该目录下所有变更文件数。
+
+示例：
+
+```text
+src/main/java/com/example/order       3
+  |- OrderController.java
+  |- OrderService.java
+  `- model/Order.java
+```
 
 ---
 
@@ -184,7 +202,8 @@ Gradle 会：
   - 加载到 3 条示例提交，默认选中最新提交；
   - 提交变更文件正确按目录分组（含新增 / 修改 / 删除状态）；
   - 原生 Diff 可正常打开（验证时由临时逻辑自动触发；正式交互为双击，含历史提交和删除文件）；
-  - `Working Tree` 可读取已跟踪修改 + 未跟踪新文件。
+  - `Working Tree` 可读取已跟踪修改 + 未跟踪新文件；
+  - 目录树压缩已用样例验证：`src/main/java/com/acme/order` 合并为一行，而包含 `build.txt` 的 `docs` 目录保持独立。
 
 > 测试时曾临时加入启动后自动打开 ToolWindow 的 Activity，验证完成后已移除；正式插件由用户点击侧边栏按钮打开。
 
