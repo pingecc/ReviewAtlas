@@ -1,0 +1,205 @@
+# CommitLogicReview
+
+一个用于 **IntelliJ IDEA 2024.2+** 的代码 Review 插件（Phase 1 / MVP）。
+
+它解决两个痛点：
+
+1. 在独立的侧边栏 ToolWindow 中，按**严格的文件目录树** Review 任意历史 Git Commit（或当前未提交变更）；
+2. 为 Phase 2 的“逻辑调用关系分析”预留清晰的 Git / 模型 / UI 分层。
+
+> 当前只实现 Phase 1，Phase 2（PSI 调用关系 + Mermaid/JCEF）尚未启动。
+
+---
+
+## 功能（Phase 1）
+
+- 侧边栏 ToolWindow：`Commit Review`
+- 异步加载当前项目最近 30 条 Commit（`短 Hash + Message + Author`），支持刷新
+- 额外提供 `Working Tree · uncommitted changes` 入口，Review 未提交变更（含 `git ls-files --others` 的未跟踪文件）
+- 默认选中最新 Commit；Git 仓库晚于 ToolWindow 初始化时自动重试
+- 按文件真实路径逐级分组渲染目录树（目录优先、忽略大小写排序）
+- 颜色 + 图标区分 `Added / Modified / Deleted / Moved`
+- 双击文件：打开 IDEA 原生 Diff 视图
+- 右键菜单：`Open Diff`、`Jump to Source`、`Copy Relative Path`
+- 键盘 `Enter`：对选中文件执行 `Open Diff`
+- 双击目录：展开 / 收起
+
+---
+
+## 技术栈
+
+| 项目 | 版本 / 说明 |
+| --- | --- |
+| 语言 | Kotlin 2.4.21 |
+| 构建 | Gradle 9.2.0 + Kotlin DSL |
+| IntelliJ Platform Gradle Plugin | `org.jetbrains.intellij.platform` **2.20.1** |
+| 目标平台 | IntelliJ IDEA Community **2024.2.6**（`sinceBuild=242`，向上兼容） |
+| JDK | **21**（IntelliJ Platform 2024.2+ 要求） |
+| 内置插件依赖 | `com.intellij.modules.platform`、`Git4Idea`、`com.intellij.java` |
+
+---
+
+## 目录结构
+
+```text
+CommitLogicReview/
+├── build.gradle.kts
+├── settings.gradle.kts
+├── gradle.properties
+├── gradle/wrapper/
+├── gradlew / gradlew.bat
+├── README.md
+└── src/main/
+    ├── kotlin/com/commitlogicreview/
+    │   ├── git/
+    │   │   └── GitChangeLoader.kt        # Git4Idea：最近 30 条提交、Change 列表、路径归一化
+    │   ├── model/
+    │   │   ├── CommitItem.kt             # Commit / Working Tree 统一模型
+    │   │   ├── ChangeEntry.kt            # 单个变更文件（状态 + 相对路径）
+    │   │   └── ReviewTreeNode.kt         # 目录树内存模型
+    │   ├── ui/
+    │   │   ├── CommitReviewToolWindowFactory.kt
+    │   │   ├── CommitReviewPanel.kt      # 主面板、Task.Backgroundable 调度、交互
+    │   │   ├── CommitSelector.kt         # 下拉框 + 刷新按钮
+    │   │   ├── ChangesTreeBuilder.kt     # Change -> 严格目录树
+    │   │   └── ChangesTreeCellRenderer.kt # 图标 / 颜色 / 状态
+    │   └── util/
+    │       ├── DiffOpener.kt             # 后台构造 DiffRequest，EDT 打开原生 Diff
+    │       └── Edt.kt                    # ReadAction / invokeLater 封装
+    └── resources/
+        ├── META-INF/plugin.xml
+        ├── META-INF/pluginIcon.svg
+        └── icons/commitReview.svg
+```
+
+---
+
+## 环境要求
+
+- JDK 21（推荐 Temurin 21）
+- 能访问 Maven Central / JetBrains IntelliJ Repository（首次构建需要下载 IntelliJ Platform 2024.2.6）
+- Windows 用户如果 `services.gradle.org` 访问缓慢，wrapper 已改用腾讯云镜像：
+  `gradle/wrapper/gradle-wrapper.properties` 中的 `distributionUrl`
+
+请确保 Gradle 使用 JDK 21（推荐把 `JAVA_HOME` 指向 JDK 21）：
+
+```powershell
+$env:JAVA_HOME = "C:\path\to\jdk-21"
+```
+
+如果不想改 `JAVA_HOME`，也可以显式把 JDK 21 路径传给 Gradle：
+
+```powershell
+.\gradlew.bat compileKotlin -Porg.gradle.java.installations.paths="C:\path\to\jdk-21"
+```
+
+---
+
+## 构建与验证
+
+Windows PowerShell：
+
+```powershell
+$env:JAVA_HOME = "C:\path\to\jdk-21"
+.\gradlew.bat compileKotlin
+.\gradlew.bat buildPlugin
+```
+
+macOS / Linux：
+
+```bash
+./gradlew compileKotlin
+./gradlew buildPlugin
+```
+
+产物：
+
+```text
+build/distributions/CommitLogicReview-1.0.0.zip
+```
+
+### 离线 / 使用本地 IDE 构建
+
+默认配置会从 JetBrains 仓库下载 IntelliJ IDEA Community 2024.2.6。如果本机已有解压好的同版本（或更新版本）IDE：
+
+```powershell
+.\gradlew.bat compileKotlin -PlocalIdePath="C:\path\to\IntelliJ IDEA 2024.2.6"
+.\gradlew.bat runIde      -PlocalIdePath="C:\path\to\IntelliJ IDEA 2024.2.6"
+```
+
+> 使用更新的 IDE（例如 2025.x / 2026.x）编译时，仍建议最终用 2024.2.6 做一次兼容性验证。
+
+---
+
+## 启动沙箱 IDEA 测试
+
+```powershell
+$env:JAVA_HOME = "C:\path\to\jdk-21"
+.\gradlew.bat runIde
+```
+
+Gradle 会：
+
+1. 下载 / 解压目标 IDE；
+2. 把插件安装到 `.intellijPlatform/sandbox/CommitLogicReview/IC-2024.2.6/plugins_runIde/`；
+3. 启动一个独立的沙箱 IDEA（不会影响你日常使用的 IDE 配置）。
+
+### 验证步骤
+
+1. 在沙箱 IDEA 中打开一个 **有 Git 历史的 Java 项目**；
+2. 点击右侧边栏的 **Commit Review**；
+3. 顶部下拉框应异步出现：
+   - `Working Tree · uncommitted changes`
+   - 最近 30 条 Commit（短 Hash + Message + Author）
+4. 选择一个 Commit（默认选中最新 Commit）：
+   - 主区域按目录树显示变更文件；
+   - 新增 = 绿色，修改 = 蓝色，删除 = 红色，移动 = 紫色；
+5. 双击文件 → 打开 IDEA 原生 Diff；
+6. 右键文件 → `Jump to Source` / `Copy Relative Path`；
+7. 点击顶部刷新按钮 → 重新加载提交列表。
+
+> 沙箱 IDE 的日志位置：
+> `.intellijPlatform/sandbox/CommitLogicReview/IC-2024.2.6/log_runIde/idea.log`
+
+---
+
+## 线程与性能设计
+
+- **所有 Git 命令**（`GitHistoryUtils.history`、`GitChangeUtils.getRevisionChanges`）都在
+  `Task.Backgroundable.run()` 中执行，绝不在 EDT 上运行。
+- **VFS / PSI 读取**（`VirtualFile` 解析、`ChangeListManager`、`GitCommit.changes`）统一包裹在
+  `ReadAction.compute` 中。
+- 耗时操作完成后，通过 `Task` 的 `onSuccess`（EDT）或
+  `ApplicationManager.getApplication().invokeLater` 更新 UI。
+- 使用 `generation` 计数丢弃过期结果：快速切换 Commit / 刷新时，旧任务的结果不会覆盖新结果。
+- 树模型与 `Change` 对象只在 EDT 上被读取；Git loader 返回纯数据 `List<ChangeEntry>`。
+
+---
+
+## 已验证
+
+- `compileKotlin` / `buildPlugin` 在 **IntelliJ IDEA Community 2024.2.6 + JDK 21** 下通过；
+- `runIde` 沙箱实测：
+  - `Commit Review` ToolWindow 可正常创建（验证时由临时 Activity 自动打开）；
+  - 加载到 3 条示例提交，默认选中最新提交；
+  - 提交变更文件正确按目录分组（含新增 / 修改 / 删除状态）；
+  - 原生 Diff 可正常打开（验证时由临时逻辑自动触发；正式交互为双击，含历史提交和删除文件）；
+  - `Working Tree` 可读取已跟踪修改 + 未跟踪新文件。
+
+> 测试时曾临时加入启动后自动打开 ToolWindow 的 Activity，验证完成后已移除；正式插件由用户点击侧边栏按钮打开。
+
+## 已知限制（Phase 1）
+
+- 历史 Commit 的 `Jump to Source` 打开的是**当前工作区**文件；要查看历史内容请使用原生 Diff。
+- 多仓库项目会聚合各仓库的最近提交，总数仍限制为 30 条。
+- 暂不支持按作者 / 分支 / 路径过滤（Phase 2 之后可扩展）。
+- 暂不支持逻辑调用关系图（Phase 2）。
+
+---
+
+## Phase 2 规划
+
+1. 基于 `com.intellij.java` / PSI，提取变更 Java 文件中的类、方法及变更范围；
+2. 构建 `caller -> callee` 有向依赖图；
+3. 新增 `逻辑关系` Tab，用 Mermaid 生成调用图，通过 `JBCefBrowser` 渲染；
+4. 点击节点跳转源码。

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<idea-plugin>
+    <id>com.commitlogicreview</id>
+    <name>CommitLogicReview</name>
+    <vendor url="https://github.com/commitlogicreview">CommitLogicReview</vendor>
+
+    <description><![CDATA[
+        <p><b>CommitLogicReview</b> lets you review an arbitrary historical Git commit
+        (or your current uncommitted changes) in a dedicated side-panel ToolWindow.</p>
+        <ul>
+            <li>Asynchronously loads the latest 30 commits, with refresh.</li>
+            <li>Renders changed files as a strict directory tree.</li>
+            <li>Colors and icons distinguish added / modified / deleted / moved files.</li>
+            <li>Double-click opens the native IntelliJ diff; the context menu can jump to source.</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
+    <depends>com.intellij.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Commit Review"
+                    anchor="right"
+                    icon="/icons/commitReview.svg"
+                    factoryClass="com.commitlogicreview.ui.CommitReviewToolWindowFactory"/>
+    </extensions>
+</idea-plugin>
