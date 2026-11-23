@@ -1,4 +1,4 @@
-# CommitLogicReview
+# ReviewAtlas
 
 一个用于 **IntelliJ IDEA 2024.2+** 的代码 Review 插件（Phase 1 / MVP）。
 
@@ -13,7 +13,7 @@
 
 ## 功能（Phase 1）
 
-- 侧边栏 ToolWindow：`Commit Review`
+- 侧边栏 ToolWindow：`Review Atlas`
 - 异步加载当前项目最近 30 条 Commit（`短 Hash + Message + Author`），支持刷新
 - 额外提供 `Working Tree · uncommitted changes` 入口，Review 未提交变更（含 `git ls-files --others` 的未跟踪文件）
 - 默认选中最新 Commit；Git 仓库晚于 ToolWindow 初始化时自动重试
@@ -42,7 +42,7 @@
 ## 目录结构
 
 ```text
-CommitLogicReview/
+ReviewAtlas/
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── gradle.properties
@@ -50,7 +50,7 @@ CommitLogicReview/
 ├── gradlew / gradlew.bat
 ├── README.md
 └── src/main/
-    ├── kotlin/com/commitlogicreview/
+    ├── kotlin/io/github/pingecc/reviewatlas/
     │   ├── git/
     │   │   └── GitChangeLoader.kt        # Git4Idea：最近 30 条提交、Change 列表、路径归一化
     │   ├── model/
@@ -58,8 +58,8 @@ CommitLogicReview/
     │   │   ├── ChangeEntry.kt            # 单个变更文件（状态 + 相对路径）
     │   │   └── ReviewTreeNode.kt         # 目录树内存模型
     │   ├── ui/
-    │   │   ├── CommitReviewToolWindowFactory.kt
-    │   │   ├── CommitReviewPanel.kt      # 主面板、Task.Backgroundable 调度、交互
+    │   │   ├── ReviewAtlasToolWindowFactory.kt
+    │   │   ├── ReviewAtlasPanel.kt      # 主面板、Task.Backgroundable 调度、交互
     │   │   ├── CommitSelector.kt         # 下拉框 + 刷新按钮
     │   │   ├── ChangesTreeBuilder.kt     # Change -> 严格目录树
     │   │   └── ChangesTreeCellRenderer.kt # 图标 / 颜色 / 状态
@@ -69,7 +69,7 @@ CommitLogicReview/
     └── resources/
         ├── META-INF/plugin.xml
         ├── META-INF/pluginIcon.svg
-        └── icons/commitReview.svg
+        └── icons/reviewAtlas.svg
 ```
 
 ---
@@ -115,7 +115,7 @@ macOS / Linux：
 产物：
 
 ```text
-build/distributions/CommitLogicReview-1.0.0.zip
+build/distributions/ReviewAtlas-1.0.0.zip
 ```
 
 ### 离线 / 使用本地 IDE 构建
@@ -141,13 +141,13 @@ $env:JAVA_HOME = "C:\path\to\jdk-21"
 Gradle 会：
 
 1. 下载 / 解压目标 IDE；
-2. 把插件安装到 `.intellijPlatform/sandbox/CommitLogicReview/IC-2024.2.6/plugins_runIde/`；
+2. 把插件安装到 `.intellijPlatform/sandbox/ReviewAtlas/IC-2024.2.6/plugins_runIde/`；
 3. 启动一个独立的沙箱 IDEA（不会影响你日常使用的 IDE 配置）。
 
 ### 验证步骤
 
 1. 在沙箱 IDEA 中打开一个 **有 Git 历史的 Java 项目**；
-2. 点击右侧边栏的 **Commit Review**；
+2. 点击右侧边栏的 **Review Atlas**；
 3. 顶部下拉框应异步出现：
    - `Working Tree · uncommitted changes`
    - 最近 30 条 Commit（短 Hash + Message + Author）
@@ -159,7 +159,7 @@ Gradle 会：
 7. 点击顶部刷新按钮 → 重新加载提交列表。
 
 > 沙箱 IDE 的日志位置：
-> `.intellijPlatform/sandbox/CommitLogicReview/IC-2024.2.6/log_runIde/idea.log`
+> `.intellijPlatform/sandbox/ReviewAtlas/IC-2024.2.6/log_runIde/idea.log`
 
 ---
 
@@ -180,7 +180,7 @@ Gradle 会：
 
 - `compileKotlin` / `buildPlugin` 在 **IntelliJ IDEA Community 2024.2.6 + JDK 21** 下通过；
 - `runIde` 沙箱实测：
-  - `Commit Review` ToolWindow 可正常创建（验证时由临时 Activity 自动打开）；
+  - `Review Atlas` ToolWindow 可正常创建（验证时由临时 Activity 自动打开）；
   - 加载到 3 条示例提交，默认选中最新提交；
   - 提交变更文件正确按目录分组（含新增 / 修改 / 删除状态）；
   - 原生 Diff 可正常打开（验证时由临时逻辑自动触发；正式交互为双击，含历史提交和删除文件）；

@@ -1,4 +1,4 @@
-package com.commitlogicreview.util
+package io.github.pingecc.reviewatlas.util
 
 import com.intellij.diff.DiffDialogHints
 import com.intellij.diff.DiffManager

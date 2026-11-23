@@ -1,11 +1,11 @@
-package com.commitlogicreview.ui
+package io.github.pingecc.reviewatlas.ui
 
-import com.commitlogicreview.git.GitChangeLoader
-import com.commitlogicreview.model.ChangeEntry
-import com.commitlogicreview.model.CommitItem
-import com.commitlogicreview.model.ReviewTreeNode
-import com.commitlogicreview.util.DiffOpener
-import com.commitlogicreview.util.Edt
+import io.github.pingecc.reviewatlas.git.GitChangeLoader
+import io.github.pingecc.reviewatlas.model.ChangeEntry
+import io.github.pingecc.reviewatlas.model.CommitItem
+import io.github.pingecc.reviewatlas.model.ReviewTreeNode
+import io.github.pingecc.reviewatlas.util.DiffOpener
+import io.github.pingecc.reviewatlas.util.Edt
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.ide.CopyPasteManager
@@ -47,7 +47,7 @@ import javax.swing.tree.TreePath
  *  - Git commands / VFS reads happen only in [Task.Backgroundable.run].
  *  - Every UI mutation happens in Task callbacks or EDT mouse/key handlers.
  */
-class CommitReviewPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
+class ReviewAtlasPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
 
     private val selector = CommitSelector(
         onRefresh = { reloadCommits(manual = true) },
@@ -292,7 +292,7 @@ class CommitReviewPanel(private val project: Project) : JPanel(BorderLayout()), 
             }
         })
 
-        val actionKey = "commitReview.openDiff"
+        val actionKey = "reviewAtlas.openDiff"
         tree.inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), actionKey)
         tree.actionMap.put(actionKey, object : AbstractAction() {
             override fun actionPerformed(e: ActionEvent?) {

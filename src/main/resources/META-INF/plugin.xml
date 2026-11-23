@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <idea-plugin>
-    <id>com.commitlogicreview</id>
-    <name>CommitLogicReview</name>
-    <vendor url="https://github.com/commitlogicreview">CommitLogicReview</vendor>
+    <id>io.github.pingecc.reviewatlas</id>
+    <name>ReviewAtlas</name>
+    <vendor url="https://github.com/pingecc">pingecc</vendor>
 
     <description><![CDATA[
-        <p><b>CommitLogicReview</b> lets you review an arbitrary historical Git commit
+        <p><b>ReviewAtlas</b> lets you review an arbitrary historical Git commit
         (or your current uncommitted changes) in a dedicated side-panel ToolWindow.</p>
         <ul>
             <li>Asynchronously loads the latest 30 commits, with refresh.</li>
@@ -20,9 +20,9 @@
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="Commit Review"
+        <toolWindow id="Review Atlas"
                     anchor="right"
-                    icon="/icons/commitReview.svg"
-                    factoryClass="com.commitlogicreview.ui.CommitReviewToolWindowFactory"/>
+                    icon="/icons/reviewAtlas.svg"
+                    factoryClass="io.github.pingecc.reviewatlas.ui.ReviewAtlasToolWindowFactory"/>
     </extensions>
 </idea-plugin>

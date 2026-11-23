@@ -1,1 +1,1 @@
-rootProject.name = "CommitLogicReview"
+rootProject.name = "ReviewAtlas"

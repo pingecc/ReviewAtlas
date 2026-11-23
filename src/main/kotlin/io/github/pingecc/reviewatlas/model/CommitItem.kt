@@ -1,4 +1,4 @@
-package com.commitlogicreview.model
+package io.github.pingecc.reviewatlas.model
 
 import git4idea.GitCommit
 import java.text.SimpleDateFormat

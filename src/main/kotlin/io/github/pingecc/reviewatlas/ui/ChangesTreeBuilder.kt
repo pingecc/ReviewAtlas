@@ -1,7 +1,7 @@
-package com.commitlogicreview.ui
+package io.github.pingecc.reviewatlas.ui
 
-import com.commitlogicreview.model.ChangeEntry
-import com.commitlogicreview.model.ReviewTreeNode
+import io.github.pingecc.reviewatlas.model.ChangeEntry
+import io.github.pingecc.reviewatlas.model.ReviewTreeNode
 import javax.swing.tree.DefaultMutableTreeNode
 
 /**

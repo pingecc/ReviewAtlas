@@ -1,4 +1,4 @@
-package com.commitlogicreview.model
+package io.github.pingecc.reviewatlas.model
 
 import com.intellij.openapi.vcs.changes.Change
 

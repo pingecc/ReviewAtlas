@@ -7,7 +7,7 @@ plugins {
     id("org.jetbrains.intellij.platform") version "2.20.1"
 }
 
-group = "com.commitlogicreview"
+group = "io.github.pingecc"
 version = "1.0.0"
 
 repositories {
@@ -60,12 +60,12 @@ intellijPlatform {
     buildSearchableOptions = false
 
     pluginConfiguration {
-        id = "com.commitlogicreview"
-        name = "CommitLogicReview"
+        id = "io.github.pingecc.reviewatlas"
+        name = "ReviewAtlas"
         version = project.version.toString()
 
         description = """
-            <p><b>CommitLogicReview</b> lets you review an arbitrary historical Git commit
+            <p><b>ReviewAtlas</b> lets you review an arbitrary historical Git commit
             (or the current uncommitted changes) in a dedicated side-panel ToolWindow.</p>
             <ul>
               <li>Asynchronously loads the latest 30 commits, with refresh.</li>
@@ -76,8 +76,8 @@ intellijPlatform {
         """.trimIndent()
 
         vendor {
-            name = "CommitLogicReview"
-            url = "https://github.com/commitlogicreview"
+            name = "pingecc"
+            url = "https://github.com/pingecc"
         }
 
         ideaVersion {

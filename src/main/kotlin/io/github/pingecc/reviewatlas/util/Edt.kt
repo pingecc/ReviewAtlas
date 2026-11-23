@@ -1,4 +1,4 @@
-package com.commitlogicreview.util
+package io.github.pingecc.reviewatlas.util
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction

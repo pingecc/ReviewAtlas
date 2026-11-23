@@ -1,7 +1,7 @@
-package com.commitlogicreview.git
+package io.github.pingecc.reviewatlas.git
 
-import com.commitlogicreview.model.ChangeEntry
-import com.commitlogicreview.model.CommitItem
+import io.github.pingecc.reviewatlas.model.ChangeEntry
+import io.github.pingecc.reviewatlas.model.CommitItem
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project

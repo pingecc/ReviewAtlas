@@ -1,4 +1,4 @@
-package com.commitlogicreview.model
+package io.github.pingecc.reviewatlas.model
 
 /**
  * In-memory directory tree used to build the Swing tree model.

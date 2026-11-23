@@ -1,6 +1,6 @@
-package com.commitlogicreview.ui
+package io.github.pingecc.reviewatlas.ui
 
-import com.commitlogicreview.model.ReviewTreeNode
+import io.github.pingecc.reviewatlas.model.ReviewTreeNode
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.vcs.changes.Change
 import com.intellij.ui.ColoredTreeCellRenderer
