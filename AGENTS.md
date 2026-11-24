@@ -94,6 +94,17 @@ build/distributions/ReviewAtlas-1.0.0.zip
 - `Task.Backgroundable` has no usable `cancel()` in this platform version;
   use generation counters and `disposed` checks instead.
 
+### Working tree
+
+- `ChangeListManager#allChanges` is a cache: it only re-scans files the VCS marked
+  dirty. A commit made outside the IDE touches no working-tree file, so no VFS
+  event fires and the cached list keeps reporting the just-committed files.
+  Call `VcsDirtyScopeManager.markEverythingDirty()` and then
+  `ChangeListManagerEx.waitForUpdate()` (background thread, no `ReadAction` held)
+  before reading the list.
+- Do not use `ChangeListManagerImpl.waitUntilRefreshed()`: it asserts test mode
+  and can throw `AssertionError` in a real IDE.
+
 ### Semantic methods
 
 - A method is changed **only if its own PSI text differs** between before/after.

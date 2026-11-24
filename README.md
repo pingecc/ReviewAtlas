@@ -222,7 +222,7 @@ Gradle 会：
 6. 展开文件 → 查看方法级语义树；
 7. 双击方法 → 打开 Diff 并定位到方法；
 8. 方法右键 → `Jump to Source` / `Copy Reference`；
-9. 点击顶部刷新按钮 → 重新加载提交列表。
+9. 点击顶部刷新按钮 → 重新加载提交列表，并强制重扫工作区变更（外部 `git commit` 后立即刷新也能看到最新状态）。
 
 > 沙箱 IDE 的日志位置：
 > `.intellijPlatform/sandbox/ReviewAtlas/IC-2024.2.6/log_runIde/idea.log`
@@ -240,6 +240,9 @@ Gradle 会：
 - 耗时操作完成后，通过 `Task` 的 `onSuccess`（EDT）或
   `ApplicationManager.getApplication().invokeLater` 更新 UI。
 - 使用 `generation` 计数丢弃过期结果：快速切换 Commit / 刷新时，旧任务的结果不会覆盖新结果。
+- 读取工作区变更前先强制平台重扫：`VcsDirtyScopeManager.markEverythingDirty()` +
+  `ChangeListManagerEx.waitForUpdate()`。`ChangeListManager#allChanges` 只是缓存，外部
+  `git commit` 不会改动工作区文件，不主动重扫就会一直返回提交前的旧列表。
 - 树模型与 `Change` 对象只在 EDT 上被读取；Git loader 返回纯数据 `List<ChangeEntry>`。
 
 ---

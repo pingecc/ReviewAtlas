@@ -3,13 +3,17 @@ package io.github.pingecc.reviewatlas.git
 import io.github.pingecc.reviewatlas.model.ChangeEntry
 import io.github.pingecc.reviewatlas.model.CommitItem
 import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vcs.FilePath
 import com.intellij.openapi.vcs.VcsException
 import com.intellij.openapi.vcs.changes.Change
 import com.intellij.openapi.vcs.changes.ChangeListManager
+import com.intellij.openapi.vcs.changes.ChangeListManagerEx
 import com.intellij.openapi.vcs.changes.CurrentContentRevision
+import com.intellij.openapi.vcs.changes.VcsDirtyScopeManager
 import com.intellij.vcsUtil.VcsUtil
 import git4idea.changes.GitChangeUtils
 import git4idea.commands.Git
@@ -25,6 +29,8 @@ import git4idea.repo.GitRepositoryManager
  * short VFS reads are additionally protected by [ReadAction].
  */
 object GitChangeLoader {
+
+    private val LOG = Logger.getInstance(GitChangeLoader::class.java)
 
     private const val MAX_COMMITS = 30
 
@@ -72,24 +78,7 @@ object GitChangeLoader {
         val roots = repositories.map { it.root.path }
 
         val changes: Collection<Change> = if (item.isWorkingTree) {
-            // Git's untracked files are not exposed through ChangeListManager#allChanges,
-            // and the repository's untracked cache may still be empty during startup.
-            // Query Git directly instead.
-            val untrackedPaths = loadUntrackedFilePaths(project, repositories)
-
-            ReadAction.compute<Collection<Change>, RuntimeException> {
-                val changeListManager = ChangeListManager.getInstance(project)
-                val result = ArrayList<Change>(changeListManager.allChanges)
-                val knownPaths = result.mapNotNullTo(HashSet()) {
-                    (it.afterRevision ?: it.beforeRevision)?.file?.path
-                }
-                for (filePath in untrackedPaths) {
-                    if (!filePath.isDirectory && knownPaths.add(filePath.path)) {
-                        result += Change(null, CurrentContentRevision(filePath))
-                    }
-                }
-                result
-            }
+            loadWorkingTreeChanges(project, repositories, indicator)
         } else {
             val commit = item.commit ?: return emptyList()
             val cached: Collection<Change> = ReadAction.compute<Collection<Change>, RuntimeException> {
@@ -106,6 +95,66 @@ object GitChangeLoader {
         indicator.checkCanceled()
         return changes.mapNotNull { toEntry(it, roots) }
             .sortedBy { it.relativePath.lowercase() }
+    }
+
+    /**
+     * Working tree entries come from two sources: [ChangeListManager] for tracked
+     * files and `git ls-files` for untracked ones.
+     *
+     * The change list is a cache that is only rebuilt when the VCS re-scans a dirty
+     * scope. A commit made outside the IDE (`git commit` in a terminal, a Git GUI,
+     * another tool) does not modify any working tree file, so no VFS event marks
+     * the files dirty and the cached list keeps returning the files that were just
+     * committed. Reading it directly therefore shows stale entries until something
+     * else refreshes the change list. Force the re-scan and wait for it first.
+     */
+    private fun loadWorkingTreeChanges(
+        project: Project,
+        repositories: List<GitRepository>,
+        indicator: ProgressIndicator,
+    ): Collection<Change> {
+        indicator.checkCanceled()
+        refreshChangeList(project)
+        indicator.checkCanceled()
+
+        // Git's untracked files are not exposed through ChangeListManager#allChanges,
+        // and the repository's untracked cache may still be empty during startup.
+        // Query Git directly instead; `git ls-files` always reads the real state.
+        val untrackedPaths = loadUntrackedFilePaths(project, repositories)
+
+        return ReadAction.compute<Collection<Change>, RuntimeException> {
+            val changeListManager = ChangeListManager.getInstance(project)
+            val result = ArrayList<Change>(changeListManager.allChanges)
+            val knownPaths = result.mapNotNullTo(HashSet()) {
+                (it.afterRevision ?: it.beforeRevision)?.file?.path
+            }
+            for (filePath in untrackedPaths) {
+                if (!filePath.isDirectory && knownPaths.add(filePath.path)) {
+                    result += Change(null, CurrentContentRevision(filePath))
+                }
+            }
+            result
+        }
+    }
+
+    /**
+     * Marks every file dirty and blocks until [ChangeListManager] has rebuilt its
+     * lists, mirroring the platform's own refresh action.
+     *
+     * Called only from a background task, without a read action held: [ChangeListManagerEx.waitForUpdate]
+     * asserts that, and its sibling `waitUntilRefreshed()` is a test-only API.
+     */
+    private fun refreshChangeList(project: Project) {
+        if (project.isDisposed) return
+        try {
+            VcsDirtyScopeManager.getInstance(project).markEverythingDirty()
+            ChangeListManagerEx.getInstanceEx(project).waitForUpdate()
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: Exception) {
+            // Keep the cached list rather than failing the whole load.
+            LOG.warn("Cannot refresh the change list before reading the working tree", e)
+        }
     }
 
     private fun loadUntrackedFilePaths(project: Project, repositories: List<GitRepository>): List<FilePath> {

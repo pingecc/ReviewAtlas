@@ -419,7 +419,55 @@ MODIFIED:process:process(String, int)
 
 ---
 
-## 15. 当前结论
+## 15. 提交后点刷新，工作区仍显示已提交的文件
+
+### 症状
+
+在 IDE 外部（终端、Git GUI、脚本）执行 `git commit` 后，点击 ReviewAtlas 的刷新按钮：
+
+- 提交下拉框里已经出现新提交；
+- 但 `Working Tree` 里仍显示刚刚提交过的文件；
+- 切到某个 Commit 再切回 `Working Tree`，才显示“无未提交变更”。
+
+### 原因
+
+工作区的已跟踪变更来自 `ChangeListManager#allChanges`，它是一个缓存：
+
+1. 平台只在 VCS 认为“文件脏了”时才重扫并重建列表；
+2. `git commit` 不改动工作区文件本身，磁盘内容没变，所以没有 VFS 事件把文件标脏；
+3. 插件直接读 `allChanges`，拿到的仍是提交前的快照。
+
+刷新按钮只重新加载提交列表 + 重新读取变更，并不会触发平台重扫，所以“点了没反应”。
+切 Commit 再切回来之所以看起来好了，是因为那几秒钟里平台自己的后台刷新刚好完成——
+本质是竞态，不是顺序问题。
+
+### 修复
+
+读取工作区变更前，先按平台“刷新变更视图”的同一套流程强制重扫，并等待它完成：
+
+```kotlin
+VcsDirtyScopeManager.getInstance(project).markEverythingDirty()
+ChangeListManagerEx.getInstanceEx(project).waitForUpdate()
+```
+
+注意：
+
+- 必须在**后台线程**、且**不持有 ReadAction** 时调用 `waitForUpdate()`
+  （平台内部会断言不能处于读锁中）；
+- 不要用 `ChangeListManagerImpl.waitUntilRefreshed()`，它带测试模式断言，
+  正式运行时可能直接抛 `AssertionError`；
+- `markEverythingDirty()` 会触发全项目重扫，代价与平台自带的刷新按钮一致，可以接受。
+
+### 验证
+
+1. 打开 ReviewAtlas，选中 `Working Tree`，修改一个已跟踪文件；
+2. 在终端 `git commit -am "..."`；
+3. 立刻点刷新按钮 → 树清空并显示 “No uncommitted changes.”；
+4. 再制造一个未跟踪文件 → 刷新后立即出现。
+
+---
+
+## 16. 当前结论
 
 - 方法级语义树：可用，按方法 PSI 文本判定；
 - 方法 Diff 定位：`SCROLL_TO_LINE` + `ReviewDiffScrollExtension` 双保险；
