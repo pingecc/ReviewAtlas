@@ -101,6 +101,9 @@ build/distributions/ReviewAtlas-1.0.0.zip
   insertion fragments can land on a neighbouring method's closing brace.
 - Normalize CRLF/LF before comparing method text.
 - Keep method matching by `name + normalized parameter types`.
+- For an unmatched after method, pair it with an unambiguous remaining
+  before method of the same name as `MODIFIED` (signature change). Do not show
+  the same method as both `NEW` and `DELETED`.
 - Import, field, constant, and class-declaration changes must never mark an
   unchanged method.
 - Java only for now; do not pretend Kotlin methods are supported.

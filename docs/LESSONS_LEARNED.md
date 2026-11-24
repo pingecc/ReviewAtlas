@@ -375,7 +375,51 @@ git status --short
 
 ---
 
-## 14. 当前结论
+## 14. 方法签名变化会生成同名 NEW + DELETED
+
+### 症状
+
+方法参数签名变化后，方法语义树下出现两个同名方法：
+
+- 第一个跳转到修改前；
+- 第二个跳转到修改后。
+
+### 原因
+
+方法匹配 key 是“方法名 + 参数类型”。签名变化后 key 不同：
+
+- after 找不到 before → `NEW`
+- before 找不到 after → `DELETED`
+
+于是同一个业务方法被拆成两个节点。
+
+### 修复
+
+1. 先用精确 key 匹配；
+2. 对剩余方法按方法名分组；
+3. 如果同名 before/after 唯一，或参数数量相同的候选唯一，则合并为一个 `MODIFIED`；
+4. 仍无法唯一匹配时才保留 `NEW` / `DELETED`。
+
+### 验证
+
+`SignatureChange.java`：
+
+```text
+before: process(String)
+after:  process(String, int)
+```
+
+结果：
+
+```text
+MODIFIED:process:process(String, int)
+```
+
+不再出现两个同名方法。
+
+---
+
+## 15. 当前结论
 
 - 方法级语义树：可用，按方法 PSI 文本判定；
 - 方法 Diff 定位：`SCROLL_TO_LINE` + `ReviewDiffScrollExtension` 双保险；

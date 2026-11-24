@@ -78,63 +78,99 @@ object SemanticMethodExtractor {
 
         val beforeByKey = beforeMethods.associateBy { it.matchKey }
         val afterByKey = afterMethods.associateBy { it.matchKey }
+        // Exact signature matches are handled first. The remaining before
+        // methods are candidates for a signature change (same method name).
+        val unmatchedBefore = beforeMethods
+            .filter { it.matchKey !in afterByKey }
+            .toMutableList()
         val changes = mutableListOf<MethodChange>()
 
         for (after in afterMethods) {
-            val before = beforeByKey[after.matchKey]
-            if (before == null) {
-                changes += MethodChange(
-                    name = after.name,
-                    signature = after.signature,
-                    reference = after.reference,
-                    kind = MethodChangeKind.NEW,
-                    line = after.startLine,
-                    beforeLine = null,
-                    afterLine = after.startLine,
-                    parameterCount = after.parameterCount,
-                    matchKey = after.matchKey,
-                    addedLines = after.lineCount,
-                    removedLines = 0,
-                )
+            val exactBefore = beforeByKey[after.matchKey]
+            if (exactBefore != null) {
+                if (after.text != exactBefore.text) {
+                    changes += modifiedChange(after, exactBefore, fragments)
+                }
                 continue
             }
 
-            if (after.text == before.text) continue
-
-            changes += MethodChange(
-                name = after.name,
-                signature = after.signature,
-                reference = after.reference,
-                kind = MethodChangeKind.MODIFIED,
-                line = after.startLine,
-                beforeLine = before.startLine,
-                afterLine = after.startLine,
-                parameterCount = after.parameterCount,
-                matchKey = after.matchKey,
-                addedLines = addedLines(after, fragments),
-                removedLines = removedLines(before, fragments),
-            )
+            val signatureMatch = findSignatureMatch(after, unmatchedBefore)
+            if (signatureMatch != null) {
+                unmatchedBefore.remove(signatureMatch)
+                changes += modifiedChange(after, signatureMatch, fragments)
+            } else {
+                changes += newChange(after)
+            }
         }
 
-        for (before in beforeMethods) {
-            if (afterByKey.containsKey(before.matchKey)) continue
-            changes += MethodChange(
-                name = before.name,
-                signature = before.signature,
-                reference = before.reference,
-                kind = MethodChangeKind.DELETED,
-                line = before.startLine,
-                beforeLine = before.startLine,
-                afterLine = null,
-                parameterCount = before.parameterCount,
-                matchKey = before.matchKey,
-                addedLines = 0,
-                removedLines = before.lineCount,
-            )
+        for (before in unmatchedBefore) {
+            changes += deletedChange(before)
         }
 
         return changes.sortedBy { it.line }
     }
+
+    /**
+     * When a method signature changes, its exact key no longer matches and the
+     * old implementation used to produce a NEW + DELETED pair with the same
+     * method name. Pair them back as MODIFIED when the match is unambiguous.
+     */
+    private fun findSignatureMatch(after: RawMethod, candidates: List<RawMethod>): RawMethod? {
+        val sameName = candidates.filter { it.name == after.name }
+        if (sameName.isEmpty()) return null
+        if (sameName.size == 1) return sameName.first()
+
+        val sameArity = sameName.filter { it.parameterCount == after.parameterCount }
+        if (sameArity.size == 1) return sameArity.first()
+
+        return null
+    }
+
+    private fun modifiedChange(
+        after: RawMethod,
+        before: RawMethod,
+        fragments: List<LineFragment>,
+    ): MethodChange = MethodChange(
+        name = after.name,
+        signature = after.signature,
+        reference = after.reference,
+        kind = MethodChangeKind.MODIFIED,
+        line = after.startLine,
+        beforeLine = before.startLine,
+        afterLine = after.startLine,
+        parameterCount = after.parameterCount,
+        matchKey = after.matchKey,
+        addedLines = addedLines(after, fragments),
+        removedLines = removedLines(before, fragments),
+    )
+
+    private fun newChange(after: RawMethod): MethodChange = MethodChange(
+        name = after.name,
+        signature = after.signature,
+        reference = after.reference,
+        kind = MethodChangeKind.NEW,
+        line = after.startLine,
+        beforeLine = null,
+        afterLine = after.startLine,
+        parameterCount = after.parameterCount,
+        matchKey = after.matchKey,
+        addedLines = after.lineCount,
+        removedLines = 0,
+    )
+
+    private fun deletedChange(before: RawMethod): MethodChange = MethodChange(
+        name = before.name,
+        signature = before.signature,
+        reference = before.reference,
+        kind = MethodChangeKind.DELETED,
+        line = before.startLine,
+        beforeLine = before.startLine,
+        afterLine = null,
+        parameterCount = before.parameterCount,
+        matchKey = before.matchKey,
+        addedLines = 0,
+        removedLines = before.lineCount,
+    )
 
     private fun parseMethods(project: Project, text: String): List<RawMethod> {
         if (text.isBlank()) return emptyList()

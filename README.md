@@ -63,6 +63,8 @@ src/main/java/com/example/order       3
 5. 判断：
    - `NEW`：after 中新增的方法；
    - `DELETED`：before 中存在、after 中不存在的方法；
+   - 方法签名变化：先精确匹配签名；剩余同名方法在唯一匹配时合并为一个 `MODIFIED`，
+     不会出现同名 `NEW + DELETED` 两个节点；
 6. 用 `ComparisonManager.compareLines` 统计每个方法的 `+/-` 行数。
 
 因此 import、类常量、字段、类声明、方法整体行号移动，都不会把未变化的方法标成 `MODIFIED`。
@@ -257,7 +259,8 @@ Gradle 会：
     - `OrderRepository.java` → `MODIFIED:save`、`NEW:findById`；
     - `ConstantsOnly.java` 只修改类常量 → 不生成方法节点（PSI 归属校验）；
     - `ImportOnly.java` 只新增 import → 不生成方法节点；
-    - `AddMethod.java` 新增 import + 新方法 → 只生成 `NEW:added`，不会把相邻方法误标为修改。
+    - `AddMethod.java` 新增 import + 新方法 → 只生成 `NEW:added`，不会把相邻方法误标为修改；
+    - `SignatureChange.java` 参数签名变化 → 只生成一个 `MODIFIED:process`，不会出现同名两个方法。
 
 > 测试时曾临时加入启动后自动打开 ToolWindow 的 Activity，验证完成后已移除；正式插件由用户点击侧边栏按钮打开。
 
